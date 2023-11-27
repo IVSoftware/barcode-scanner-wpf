@@ -13,35 +13,19 @@ using System.Windows.Shapes;
 
 namespace barcode_scanner
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
         public MainWindow()
         {
             InitializeComponent();
-            Loaded += OnLoad;
-        }
-
-        const int WM_CHAR = 0x0102;
-        private void OnLoad(object sender, RoutedEventArgs e)
-        {
-            _source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
-            _source.AddHook(WndProc);
-            Closed += (sender, e) =>
+            PreviewTextInput += (sender, e) =>
             {
-                _source.RemoveHook(WndProc);
+                foreach (char ch in e.Text)
+                {
+                    detectScan(ch);
+                }
             };
         }
-        HwndSource? _source = null;
-
-        private nint WndProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
-        {
-            if (msg.Equals(WM_CHAR)) detectScan((char)wParam);
-            return IntPtr.Zero;
-        }
-
         private void detectScan(char @char)
         {
             if (_keyCount == 0) _buffer.Clear();
@@ -57,8 +41,16 @@ namespace barcode_scanner
                         _keyCount = 0;
                         if (_buffer.Length > SCAN_MIN_LENGTH)
                         {
-                            Application.Current.Dispatcher.Invoke(() =>
-                                MessageBox.Show(_buffer.ToString()));
+                            Application.Current.Dispatcher.Invoke(() => 
+                            {
+                                var barcode = _buffer.ToString().Trim();
+                                // Optional remove from currently focused textbox.
+                                if(Keyboard.FocusedElement is TextBox textBox && textBox.Text.Contains(barcode)) 
+                                {
+                                    textBox.Text = textBox.Text.Replace(barcode, string.Empty);
+                                }
+                                MessageBox.Show(barcode);
+                            });
                         }
                     }
                 });
